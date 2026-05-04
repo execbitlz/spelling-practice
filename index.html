@@ -1016,16 +1016,25 @@
   // --- URL sharing ---
   function getWordsFromURL() {
     const hash = window.location.hash;
-    if (!hash.startsWith('#words=')) return null;
-    const encoded = hash.slice('#words='.length);
-    const decoded = decodeURIComponent(encoded);
-    return decoded.split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+    // New format: #p=<base64>
+    if (hash.startsWith('#p=')) {
+      try {
+        const decoded = atob(decodeURIComponent(hash.slice('#p='.length)));
+        return decoded.split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+      } catch (e) { return null; }
+    }
+    // Legacy format: #words=a,b,c (backward compatible)
+    if (hash.startsWith('#words=')) {
+      const decoded = decodeURIComponent(hash.slice('#words='.length));
+      return decoded.split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+    }
+    return null;
   }
 
   function generateShareURL() {
     const base = window.location.origin + window.location.pathname;
-    const encoded = encodeURIComponent(words.join(','));
-    return `${base}#words=${encoded}`;
+    const encoded = encodeURIComponent(btoa(words.join(',')));
+    return `${base}#p=${encoded}`;
   }
 
   function shareLink() {
