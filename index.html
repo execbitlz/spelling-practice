@@ -688,13 +688,13 @@
     }
   })();
 
-  // --- Speech setup ---
+  // --- Audio / Speech setup ---
   const synth = window.speechSynthesis;
   let britishVoice = null;
+  const audioCache = {}; // word -> { url, audio } or null
 
   function loadVoices() {
     const voices = synth.getVoices();
-    // Prefer a female en-GB voice for friendliness
     britishVoice = voices.find(v => v.lang === 'en-GB' && v.name.includes('Female'))
       || voices.find(v => v.lang === 'en-GB')
       || voices.find(v => v.lang.startsWith('en-GB'))
@@ -702,6 +702,36 @@
   }
   synth.onvoiceschanged = loadVoices;
   loadVoices();
+
+  // Fetch British pronunciation audio from Free Dictionary API
+  async function fetchAudioForWord(word) {
+    if (word in audioCache) return audioCache[word];
+    try {
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+      if (!res.ok) { audioCache[word] = null; return null; }
+      const data = await res.json();
+      const phonetics = data[0]?.phonetics || [];
+      // Prefer UK audio, then any available audio
+      const ukEntry = phonetics.find(p => p.audio && p.audio.includes('-uk'));
+      const anyEntry = phonetics.find(p => p.audio && p.audio.length > 0);
+      const audioUrl = ukEntry?.audio || anyEntry?.audio || null;
+      if (audioUrl) {
+        const audio = new Audio(audioUrl);
+        audioCache[word] = { url: audioUrl, audio };
+        return audioCache[word];
+      }
+      audioCache[word] = null;
+      return null;
+    } catch (e) {
+      audioCache[word] = null;
+      return null;
+    }
+  }
+
+  // Pre-fetch audio for all practice words in the background
+  function prefetchAudio(wordList) {
+    wordList.forEach(w => fetchAudioForWord(w));
+  }
 
   // --- Teacher Mode ---
   function toggleTeacherMode() {
@@ -814,6 +844,7 @@
     currentIndex = 0;
     score = 0;
     results = [];
+    prefetchAudio(practiceWords);
     showScreen('practiceScreen');
     loadCurrentWord();
   }
@@ -834,17 +865,38 @@
     setTimeout(() => speakCurrentWord(), 400);
   }
 
-  function speakCurrentWord() {
+  async function speakCurrentWord() {
     if (currentIndex >= practiceWords.length) return;
+    const word = practiceWords[currentIndex];
+    const btn = document.getElementById('speakerBtn');
+    btn.classList.add('playing');
+
+    // Try dictionary audio first
+    const cached = await fetchAudioForWord(word);
+    if (cached && cached.audio && speechRate === 1) {
+      synth.cancel();
+      const audio = cached.audio;
+      audio.currentTime = 0;
+      audio.onended = () => btn.classList.remove('playing');
+      audio.onerror = () => {
+        btn.classList.remove('playing');
+        // Fallback to speech synthesis on audio error
+        speakWithSynth(word, btn);
+      };
+      audio.play().catch(() => speakWithSynth(word, btn));
+    } else {
+      // Fallback: Web Speech API (also used for slow mode)
+      speakWithSynth(word, btn);
+    }
+  }
+
+  function speakWithSynth(word, btn) {
     synth.cancel();
-    const utt = new SpeechSynthesisUtterance(practiceWords[currentIndex]);
+    const utt = new SpeechSynthesisUtterance(word);
     utt.lang = 'en-GB';
     if (britishVoice) utt.voice = britishVoice;
     utt.rate = speechRate;
     utt.pitch = 1;
-
-    const btn = document.getElementById('speakerBtn');
-    btn.classList.add('playing');
     utt.onend = () => btn.classList.remove('playing');
     utt.onerror = () => btn.classList.remove('playing');
     synth.speak(utt);
