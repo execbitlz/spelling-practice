@@ -589,9 +589,6 @@
         <button class="btn btn-success" onclick="startPractice()" id="startBtn" disabled>
           🚀 Start Practice
         </button>
-        <button class="btn btn-ghost btn-small" onclick="loadSampleWords()">
-          Load sample words
-        </button>
       </div>
       <div id="teacherStatus" style="text-align:center; margin-top:12px; font-size:0.9rem; color:var(--text-light); font-weight:600; display:none;">
         🔒 Teacher Mode is ON — words will be saved and the app will start in practice mode next time.
@@ -803,15 +800,6 @@
     document.getElementById('startBtn').disabled = words.length === 0;
   }
 
-  function loadSampleWords() {
-    const samples = ['beautiful', 'necessary', 'separate', 'definitely', 'environment',
-                     'beginning', 'knowledge', 'surprise', 'exercise', 'calendar'];
-    samples.forEach(w => { if (!words.includes(w)) words.push(w); });
-    renderWordList();
-    updateStartButton();
-    updateShareButton();
-    if (teacherMode) saveTeacherData();
-  }
 
   // --- Screens ---
   function showScreen(id) {
