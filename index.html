@@ -784,14 +784,13 @@
 
   function renderWordList() {
     const list = document.getElementById('wordList');
-    const empty = document.getElementById('emptyState');
     if (words.length === 0) {
-      list.innerHTML = '';
-      list.appendChild(empty);
-      empty.style.display = 'block';
+      list.innerHTML = `<div class="empty-state">
+        <div class="emoji">📚</div>
+        <div>Add some words to get started!</div>
+      </div>`;
       return;
     }
-    empty.style.display = 'none';
     list.innerHTML = words.map(w =>
       `<div class="word-chip">
         ${w}
