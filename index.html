@@ -671,6 +671,8 @@
   let speechRate = 1;
   let hintShown = false;
   let answered = false;
+  let attempts = 0;
+  const MAX_ATTEMPTS = 3;
   let teacherMode = false;
 
   // --- Background stars ---
@@ -832,6 +834,7 @@
   function loadCurrentWord() {
     answered = false;
     hintShown = false;
+    attempts = 0;
     document.getElementById('spellingInput').value = '';
     document.getElementById('feedbackArea').innerHTML = '';
     document.getElementById('practiceButtons').style.display = 'flex';
@@ -883,26 +886,49 @@
       document.getElementById('spellingInput').focus();
       return;
     }
-    answered = true;
     const word = practiceWords[currentIndex];
     const correct = input === word;
-
-    if (correct) score++;
-    results.push({ word, answer: input, correct, hintUsed: hintShown });
+    attempts++;
 
     const area = document.getElementById('feedbackArea');
-    const messages = correct
-      ? ['Brilliant! 🎉', 'Superstar! ⭐', 'Nailed it! 🙌', 'Perfect! 💯', 'Wonderful! 🌟', 'You rock! 🎸']
-      : [`Not quite! The spelling is: <strong>${word}</strong>`];
-    const msg = messages[Math.floor(Math.random() * messages.length)];
-    area.innerHTML = `<div class="feedback ${correct ? 'correct' : 'wrong'}">${msg}</div>`;
 
-    if (correct) spawnConfetti();
+    if (correct) {
+      // Correct answer
+      answered = true;
+      score++;
+      results.push({ word, answer: input, correct: true, hintUsed: hintShown });
 
-    document.getElementById('practiceButtons').style.display = 'none';
-    document.getElementById('nextButtons').style.display = 'flex';
-    document.getElementById('spellingInput').disabled = true;
-    updateScore();
+      const messages = ['Brilliant! 🎉', 'Superstar! ⭐', 'Nailed it! 🙌', 'Perfect! 💯', 'Wonderful! 🌟', 'You rock! 🎸'];
+      area.innerHTML = `<div class="feedback correct">${messages[Math.floor(Math.random() * messages.length)]}</div>`;
+      spawnConfetti();
+
+      document.getElementById('practiceButtons').style.display = 'none';
+      document.getElementById('nextButtons').style.display = 'flex';
+      document.getElementById('spellingInput').disabled = true;
+      updateScore();
+    } else if (attempts < MAX_ATTEMPTS) {
+      // Wrong but has tries left
+      const remaining = MAX_ATTEMPTS - attempts;
+      const tryMessages = [
+        `Not quite! Try again — ${remaining} ${remaining === 1 ? 'chance' : 'chances'} left 💪`,
+        `Almost! Give it another go — ${remaining} ${remaining === 1 ? 'try' : 'tries'} left 🤔`,
+        `Hmm, not that one! ${remaining} more ${remaining === 1 ? 'try' : 'tries'} ✏️`
+      ];
+      area.innerHTML = `<div class="feedback wrong">${tryMessages[Math.floor(Math.random() * tryMessages.length)]}</div>`;
+      document.getElementById('spellingInput').value = '';
+      document.getElementById('spellingInput').focus();
+    } else {
+      // Out of attempts
+      answered = true;
+      results.push({ word, answer: input, correct: false, hintUsed: hintShown });
+
+      area.innerHTML = `<div class="feedback wrong">The correct spelling is: <strong>${word}</strong></div>`;
+
+      document.getElementById('practiceButtons').style.display = 'none';
+      document.getElementById('nextButtons').style.display = 'flex';
+      document.getElementById('spellingInput').disabled = true;
+      updateScore();
+    }
   }
 
   function nextWord() {
@@ -956,7 +982,7 @@
       `<div class="results-item ${r.correct ? 'correct' : 'wrong'}">
         <span>${r.correct ? '✅' : '❌'}</span>
         <span class="word">${r.word}</span>
-        ${r.correct ? '' : `<span class="answer">You wrote: ${r.answer}</span>`}
+        ${r.correct ? '' : `<span class="answer">wrote: ${r.answer}</span>`}
       </div>`
     ).join('');
 
